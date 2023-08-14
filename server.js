@@ -1,8 +1,10 @@
 const WebSocket = require('ws');
 
-const wss = new WebSocket.Server({ port: 8080 });
+const port = process.env.PORT || 8080;
 
-// Define the card sets
+const wss = new WebSocket.Server({ port: port });
+
+// Define the card sets 
 const cards = [
   {"A_Set": ['card0', 'card0', 'card0'], "B_Set": ['card0', 'card0', 'card0']},
   {"A_Set": ['card1', 'card1', 'card1'], "B_Set": ['card1', 'card1', 'card1']},
