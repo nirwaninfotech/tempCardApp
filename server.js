@@ -268,8 +268,6 @@ function getRandomIndex(list) {
   return Math.floor(Math.random() * list.length);
 }
 
-// Define a function to send both current time and winning cards
-
 // ...
 
 // Define a function to send both current time and winning cards
@@ -282,26 +280,45 @@ function sendCurrentTimeAndCards() {
     currentTime = 0;
   }
 
-  let selectedCards = [];
-  let winningSet = null;
-  let winner = '';
+  // Send current time every second
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ currentTime }));
+    }
+  });
 
-  if (forceValue === 'a') {
-    selectedCards = awinning[getRandomIndex(awinning)];
-    winner = 'a';
-  } else if (forceValue === 'b') {
-    selectedCards = bwinning[getRandomIndex(bwinning)];
-    winner = 'b';
-  } else {
-    const totalVotes = userVotes.a + userVotes.b;
+  // Send selected cards after 99 seconds
+  if (currentTime === 99) {
+    let selectedCards = [];
+    let winningSet = null;
+    let winner = '';
 
-    if (totalVotes > 0) {
-      if (userVotes.a < userVotes.b) {
-        winningSet = awinning;
-        winner = 'a';
-      } else if (userVotes.b < userVotes.a) {
-        winningSet = bwinning;
-        winner = 'b';
+    if (forceValue === 'a') {
+      selectedCards = awinning[getRandomIndex(awinning)];
+      winner = 'a';
+    } else if (forceValue === 'b') {
+      selectedCards = bwinning[getRandomIndex(bwinning)];
+      winner = 'b';
+    } else {
+      const totalVotes = userVotes.a + userVotes.b;
+
+      if (totalVotes > 0) {
+        if (userVotes.a < userVotes.b) {
+          winningSet = awinning;
+          winner = 'a';
+        } else if (userVotes.b < userVotes.a) {
+          winningSet = bwinning;
+          winner = 'b';
+        } else {
+          // Randomly choose between awinning and bwinning
+          if (Math.random() < 0.5) {
+            winningSet = awinning;
+            winner = 'a';
+          } else {
+            winningSet = bwinning;
+            winner = 'b';
+          }
+        }
       } else {
         // Randomly choose between awinning and bwinning
         if (Math.random() < 0.5) {
@@ -312,55 +329,46 @@ function sendCurrentTimeAndCards() {
           winner = 'b';
         }
       }
-    } else {
-      // Randomly choose between awinning and bwinning
-      if (Math.random() < 0.5) {
-        winningSet = awinning;
-        winner = 'a';
-      } else {
-        winningSet = bwinning;
-        winner = 'b';
+    }
+
+    if (winningSet) {
+      selectedCards = winningSet[getRandomIndex(winningSet)];
+    }
+
+    const response = {
+      winner: winner,
+      cards: selectedCards,
+    };
+
+    lastResponses.unshift(response.winner);
+    if (lastResponses.length > 10) {
+      lastResponses.pop();
+    }
+
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(response));
+        client.send(JSON.stringify(lastResponses));
       }
-    }
+    });
+
+    // Reset userVotes
+    userVotes = {
+      a: 0,
+      b: 0,
+    };
+    forceValue = null;
   }
-
-  if (winningSet) {
-    selectedCards = winningSet[getRandomIndex(winningSet)];
-  }
-
-  const response = {
-    winner: winner,
-    cards: selectedCards,
-    // currentTime: currentTime, // Include current time in the response
-  };
-
-  lastResponses.unshift(response.winner);
-  if (lastResponses.length > 10) {
-    lastResponses.pop();
-  }
-
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(response));
-      client.send(JSON.stringify(currentTime));
-      client.send(JSON.stringify(lastResponses));
-    }
-  });
-
-  // Reset userVotes
-  userVotes = {
-    a: 0,
-    b: 0,
-  };
-  forceValue = null;
 }
 
-// Start sending random card sets and current time from a single setInterval
+// Start sending current time every second
 setInterval(() => {
   sendCurrentTimeAndCards(); // Call the function to send both time and cards
-}, 1000); // 1 second interval for more precise timing
+}, 1000); // Update time every second
 
 // ...
+
+
 
 wss.on('connection', (ws) => {
   console.log('Client connected');
