@@ -4,6 +4,7 @@ const port = process.env.PORT || 8080;
 
 const wss = new WebSocket.Server({ port: port });
 
+
 const awinning = [
   {
     "A_Set": [
@@ -253,7 +254,6 @@ const bwinning = [
   },
 ];
 
-
 let userVotes = {
   a: 0,
   b: 0,
@@ -268,20 +268,9 @@ function getRandomIndex(list) {
   return Math.floor(Math.random() * list.length);
 }
 
-// Define a function to send both current time and winning cards
 
-// ...
 
-// Define a function to send both current time and winning cards
-function sendCurrentTimeAndCards() {
-  let currentTime = Math.floor((new Date() - startTime) / 1000); // Elapsed time in seconds
-
-  // Reset the time when it reaches 100 seconds
-  if (currentTime >= 100) {
-    startTime = new Date();
-    currentTime = 0;
-  }
-
+function sendRandomCardSets() {
   let selectedCards = [];
   let winningSet = null;
   let winner = '';
@@ -331,7 +320,6 @@ function sendCurrentTimeAndCards() {
   const response = {
     winner: winner,
     cards: selectedCards,
-    // currentTime: currentTime, // Include current time in the response
   };
 
   lastResponses.unshift(response.winner);
@@ -342,8 +330,8 @@ function sendCurrentTimeAndCards() {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(response));
-      client.send(JSON.stringify(currentTime));
       client.send(JSON.stringify(lastResponses));
+
     }
   });
 
@@ -355,12 +343,27 @@ function sendCurrentTimeAndCards() {
   forceValue = null;
 }
 
-// Start sending random card sets and current time from a single setInterval
+// Start sending random card sets every 1 minute
 setInterval(() => {
-  sendCurrentTimeAndCards(); // Call the function to send both time and cards
-}, 1000); // 1 second interval for more precise timing
+  sendRandomCardSets();
+}, 100000); // 1 minute in milliseconds
 
-// ...
+// Send current time status continuously to all connected clients
+setInterval(() => {
+  let currentTime = Math.floor((new Date() - startTime) / 1000); // Elapsed time in seconds
+
+  // Reset the time when it reaches 100 seconds
+  if (currentTime >= 100) {
+    startTime = new Date();
+    currentTime = 0;
+  }
+
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ currentTime }));
+    }
+  });
+}, 1000); // Update time every second
 
 wss.on('connection', (ws) => {
   console.log('Client connected');
@@ -395,3 +398,4 @@ wss.on('connection', (ws) => {
   const currentTime = Math.floor((new Date() - startTime) / 1000); // Elapsed time in seconds
   ws.send(JSON.stringify({ currentTime }));
 });
+
